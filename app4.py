@@ -7,6 +7,10 @@ import yt_dlp
 import tkinter as tk
 from tkinter import filedialog
 import webbrowser
+import logging
+
+# --- Configure Logging ---
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # --- Configuration ---
 DEFAULT_DOWNLOAD_FOLDER = os.path.join(os.getcwd(), "downloads")
@@ -15,6 +19,7 @@ os.makedirs(DEFAULT_DOWNLOAD_FOLDER, exist_ok=True)
 # --- Flask App Setup ---
 app = Flask(__name__)
 message_queue = Queue()
+folder_queue = Queue()  # Queue to communicate folder path from Tkinter to Flask
 
 # --- Templates ---
 BASE_HTML = """
@@ -111,12 +116,25 @@ INDEX_HTML = """
 {% block head %}
 <script>
 function openFolderPicker() {
-  fetch('/pick_folder')
-    .then(response => response.text())
+  console.log("Opening folder picker...");
+  fetch('/pick_folder', { method: 'POST' })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error('Network response was not ok: ' + response.statusText);
+      }
+      return response.text();
+    })
     .then(path => {
+      console.log("Received path:", path);
       if (path) {
         document.getElementById('folder').value = path;
+      } else {
+        console.log("No path returned");
       }
+    })
+    .catch(error => {
+      console.error("Error fetching folder path:", error);
+      alert("Failed to select folder: " + error.message);
     });
 }
 </script>
@@ -224,15 +242,24 @@ def start_download_thread(urls, download_audio, folder):
 # --- Flask Routes ---
 @app.route("/")
 def index():
+    logging.debug("Rendering index page")
     return render_template_string(INDEX_HTML, default_folder=DEFAULT_DOWNLOAD_FOLDER)
 
-@app.route("/pick_folder")
+@app.route("/pick_folder", methods=["POST"])
 def pick_folder():
-    root = tk.Tk()
-    root.withdraw()  # Hide the main window
-    folder_path = filedialog.askdirectory(initialdir=DEFAULT_DOWNLOAD_FOLDER)
-    root.destroy()
-    return folder_path if folder_path else ""
+    logging.debug("Received request to pick folder")
+    # Clear the queue to ensure we get the latest selection
+    with folder_queue.mutex:
+        folder_queue.queue.clear()
+    # Signal Tkinter to pick a folder
+    root.event_generate("<<PickFolder>>")
+    try:
+        folder_path = folder_queue.get(timeout=5)  # Wait up to 5 seconds
+        logging.debug(f"Returning folder path: {folder_path}")
+        return folder_path
+    except Empty:
+        logging.error("Timeout waiting for folder selection")
+        return ""
 
 @app.route("/start", methods=["POST"])
 def start_download():
@@ -266,10 +293,33 @@ def stream():
                 continue
     return Response(event_stream(), mimetype="text/event-stream")
 
-# --- Launch the App ---
-def open_browser():
-    webbrowser.open("http://127.0.0.1:5000")
+# --- Tkinter and Flask Integration ---
+def run_flask():
+    app.run(debug=True, use_reloader=False, threaded=True, host="127.0.0.1", port=5000)
 
-if __name__ == '__main__':
-    threading.Timer(1, open_browser).start()  # Open browser after 1 second
-    app.run(debug=True, use_reloader=False)  # Disable reloader to avoid Tkinter issues
+def pick_folder_handler(event):
+    folder_path = filedialog.askdirectory(initialdir=DEFAULT_DOWNLOAD_FOLDER, title="Select Download Folder")
+    logging.debug(f"Folder selected: {folder_path}")
+    folder_queue.put(folder_path if folder_path else "")
+
+def main():
+    # Start Flask in a separate thread
+    flask_thread = threading.Thread(target=run_flask, daemon=True)
+    flask_thread.start()
+
+    # Open browser
+    threading.Timer(1, lambda: webbrowser.open("http://127.0.0.1:5000")).start()
+
+    # Set up Tkinter in the main thread
+    global root
+    root = tk.Tk()
+    root.withdraw()  # Hide the main window
+    root.protocol("WM_DELETE_WINDOW", root.quit)
+    root.bind("<<PickFolder>>", pick_folder_handler)
+    
+    # Run Tkinter event loop
+    logging.debug("Starting Tkinter main loop")
+    root.mainloop()
+
+if __name__ == "__main__":
+    main()
