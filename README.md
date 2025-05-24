@@ -56,7 +56,7 @@ Tired of unreliable online downloaders getting taken down? This tool puts you in
 1. **Clone or download this repository:**
 
    ```bash
-   git clone https://github.com/yourusername/yt-hd-downloader.git
+   git clone https://github.com/Shaburu/YT-HD-Downloader.git
    cd yt-hd-downloader
    ```
 2. **Create and activate a virtual environment (recommended):**
@@ -76,7 +76,7 @@ pip install flask yt-dlp
 
 Run the Python script:
 ```bash
-python your_script_name.py
+python v5.py
 ```
 
 > This starts a local web server on http://127.0.0.1:5000
