@@ -13,10 +13,10 @@ Tired of unreliable online downloaders getting taken down? This tool puts you in
 ## 🖥️ UI Preview
 
 ### Batch Download, Get only MP3, Fully HD, Select folder
-![image](https://github.com/user-attachments/assets/df4d4439-af26-454f-92a0-9d2366834d37)
+![image](https://github.com/user-attachments/assets/4399130f-45c6-4d32-a9cc-11b1f34aba74)
 
 ### Get detailed Logs
-![image](https://github.com/user-attachments/assets/54c696fc-fbe6-40cd-9a82-2cf894e8f769)
+![image](https://github.com/user-attachments/assets/2e730420-10bb-4c50-a78a-d29a68105c9b)
 
 
 ---
