@@ -140,7 +140,7 @@ function openFolderPicker() {
 </script>
 {% endblock %}
 {% block content %}
-  <h1>Multiple Video Downloader</h1>
+  <h1>LOCAL YT DOWNLOADER by Shaburu</h1>
   <form action="{{ url_for('start_download') }}" method="POST">
     <label for="folder">Download Folder:</label>
     <input type="text" id="folder" name="folder" value="{{ default_folder }}" required readonly>
