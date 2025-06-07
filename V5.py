@@ -231,13 +231,77 @@ def download_videos(urls, download_audio, folder):
             'preferredcodec': 'mp3',
             'preferredquality': '192',
         }]
+    
+    # else:
+        # # Video download: download best video and best audio then convert to mp4
+        # ydl_opts['format'] = 'bestvideo+bestaudio/best'
+        # ydl_opts['postprocessors'] = [{
+        #     'key': 'FFmpegVideoConvertor',
+        #     'preferedformat': 'mp4'
+        # }]
+        # Choose bestvideo only if codec is avc1 (H.264), not vp09 (VP9)
+
+        # Ensure bestaudio is aac (optional, but good for compatibility)
+
+        # ydl_opts = {
+        #     'outtmpl': os.path.join(folder, '%(title)s.%(ext)s'),
+        #     'progress_hooks': [yt_dlp_hook],
+        #     'logger': QueueLogger(),
+        #     # Download best video+audio, fallback as needed
+        #     'format': 'bestvideo+bestaudio/best',
+        #     'merge_output_format': 'mp4',
+        #     # Always re-encode using ffmpeg to ensure compatibility
+        #     'postprocessors': [{
+        #         'key': 'FFmpegVideoConvertor',
+        #         'preferedformat': 'mp4',  # typo in yt-dlp docs! Correct is "preferedformat"
+        #     }],
+        #     'postprocessor_args': [
+        #         '-c:v', 'libx264', '-c:a', 'aac', '-strict', 'experimental'
+        #     ],
+        #   }
+
+    # else:
+    #     # Video download: Download best, always transcode to H.264 MP4!
+    #     ydl_opts['format'] = 'bestvideo+bestaudio/best'
+    #     ydl_opts['merge_output_format'] = 'mp4'
+    #     ydl_opts['postprocessors'] = [{
+    #         'key': 'FFmpegVideoConvertor',
+    #         'preferedformat': 'mp4'
+    #     }]
+    #     ydl_opts['postprocessor_args'] = [
+    #         '-c:v', 'libx264', '-c:a', 'aac', '-strict', 'experimental'
+    #     ]
+
     else:
-        # Video download: download best video and best audio then convert to mp4
-        ydl_opts['format'] = 'bestvideo+bestaudio/best'
+        # -----------------------------------------------------------------
+        # VIDEO download – always end up with an MP4/H.264/AAC that Premiere likes
+        # -----------------------------------------------------------------
+        ydl_opts['format'] = (
+            '(bestvideo[ext=mp4][vcodec^=avc1]+bestaudio[ext=m4a][acodec^=mp4a])/'
+            '(bestvideo+bestaudio)/best'
+        )
+    
+        # If the first expression (MP4/H.264) exists yt-dlp uses it.
+        # If not, it falls back to ANY best combination and we re-encode.
+    
+        ydl_opts['merge_output_format'] = 'mp4'
+    
+        # Always run ffmpeg afterwards; forces H.264/AAC when input was VP9/WebM
         ydl_opts['postprocessors'] = [{
             'key': 'FFmpegVideoConvertor',
             'preferedformat': 'mp4'
         }]
+    
+    # Explicit re-encode flags (slower but guarantees compatibility)
+    ydl_opts['postprocessor_args'] = [
+        '-c:v', 'libx264',
+        '-preset', 'medium',
+        '-profile:v', 'high',
+        '-level', '4.2',
+        '-pix_fmt', 'yuv420p',
+        '-c:a', 'aac',
+        '-b:a', '192k'
+    ]
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         for url in urls:
             try:
